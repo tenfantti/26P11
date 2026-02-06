@@ -10,7 +10,7 @@
 	- When charging the robot, use *12 AGM* mode (Press MODE button repeatedly until *12 AGM* indicator lights up)
 	- When programming on the robot: use *SUPPLY* mode (Hold MODE button for 3 seconds, then press until *SUPPLY* indicator lights up)
 	- When robot is not in used, shut down the computer (`systemctl poweroff`) and power off the robot, leave the charger attached on *12 AGM* mode (it will maintain a 'trickle charge')
-
+# hhhhhhh
 # Project Overview
 ## Tasks
 - Build a scene graph with Stretch

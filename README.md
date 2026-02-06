@@ -1,3 +1,16 @@
+# Lab rules
+- Go through the lab rules [here](https://wiki.aalto.fi/pages/viewpage.action?pageId=238915137&spaceKey=ERL&title=Lab%2BPolicies%2Band%2BProcedures)
+## More when working with Stretch
+- Don't program the robot's acceleration parameter too high (~0.3)
+- Same for the manipulator
+- Always put the clamp at the bottom, and flip the power button when something goes wrong
+- Please use docker when possible. If not, create a separate workspace and don't touch the default catkin_ws
+- Test algorithms in Simulation if possible
+- Best practice with battery (Full version [here](https://docs.hello-robot.com/0.2/stretch-hardware-guides/docs/battery_maintenance_guide_re2/)):
+	- When charging the robot, use *12 AGM* mode (Press MODE button repeatedly until *12 AGM* indicator lights up)
+	- When programming on the robot: use *SUPPLY* mode (Hold MODE button for 3 seconds, then press until *SUPPLY* indicator lights up)
+	- When robot is not in used, shut down the computer (`systemctl poweroff`) and power off the robot, leave the charger attached on *12 AGM* mode (it will maintain a 'trickle charge')
+
 # Project Overview
 ## Tasks
 - Build a scene graph with Stretch
@@ -36,12 +49,20 @@
 	- FUNMAP: https://github.com/hello-robot/stretch_ros/tree/noetic/stretch_funmap
 	- https://github.com/hello-robot/stretch_ros/blob/noetic/stretch_demos/nodes/grasp_object
 	- Will most likely take the most programming effort
+	- Demo video: https://www.youtube.com/watch?v=2_02YcXkUQU
 - Interaction with scene graph:
 	- First step: manually select the node to grasp
 	- Second step: with LLM:
 		- convert graph to json
 		- feed 3dsg to some LLM to query
 		- ask it: e.g., grasp me something soft -> goes to a plushie
+- Simulation (only for navigation):
+	- https://version.aalto.fi/gitlab/nguyent137/stretch_docker#
+	- Docker for working with Stretch + ROS + Gazebo
+		- Only recommended for navigation, grasping doesn't work the same as actual robot (no idea why)
+		- Could use this potentially for navigation and processing grasp target with the camera, in case you don't have access to the robot, or are away
+	- https://forum.hello-robot.com/t/is-there-a-way-to-run-funmap-on-gazebo-simulation/288/2
+	- https://forum.hello-robot.com/t/how-to-make-stretch-robot-grab-an-object-in-gazebo-simulator/956
 ## Prerequisites
 - Linux
 	- knows how to work with basic Linux commands
@@ -50,6 +71,8 @@
 	- Nice playlist to get started: https://www.youtube.com/watch?v=XcJzOYe3E6M&list=PLunhqkrRNRhaqt0UfFxxC_oj7jscss2qe
 - ROS
 	- ROS Noetic: https://wiki.ros.org/ROS/Tutorials
+- Git
+	- Nice page with visualization to get started: https://learngitbranching.js.org/
 - Python
 - Some C++ (good to know if you want to change Hydra's code (I can help you a bit if you want to go that route))
 - https://docs.hello-robot.com/0.2/
@@ -83,5 +106,5 @@
 	- https://wiki.aalto.fi/pages/viewpage.action?spaceKey=IROBOTS&title=%5BUPDATING%5D+Hello+Stretch+2 (Updating, has the essential stuffs, not sure if you'll be able to access it though)
 	- https://docs.hello-robot.com/0.2/ (More in-depth, we are using Stretch 2, and ROS Noetic)
 		- The ROS 2 version is not stable yet so better not to use it
-- Takeout booking: https://takeout.aalto.fi/
+- [x] Takeout booking: https://takeout.aalto.fi/
 - Access to robot lab: asked for it, waiting

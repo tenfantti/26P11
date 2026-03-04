@@ -4,6 +4,9 @@ services:
       context: ..
       dockerfile: docker/Dockerfile
     network_mode: "host"
+    stdin_open: true
+    tty: true
+
     environment:
       - ROS_MASTER_URI=${ROS_MASTER_URI}
       - ROS_IP=${ROS_IP}
@@ -14,4 +17,4 @@ services:
       - ..:/catkin_ws/src/project:rw
       - /tmp/.X11-unix:/tmp/.X11-unix:rw
 
-    command: bash
+    command: bash -lc "tail -f /dev/null"

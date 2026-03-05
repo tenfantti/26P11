@@ -1,0 +1,15 @@
+<launch>
+  <arg name="map_file" default="$(find navigation_pkg)/maps/lab_map.yaml"/>
+  <arg name="scan_topic" default="/scan"/>
+  <arg name="rviz" default="true"/>
+
+  <node pkg="map_server" type="map_server" name="map_server" args="$(arg map_file)" output="screen"/>
+
+  <node pkg="amcl" type="amcl" name="amcl" output="screen">
+    <remap from="scan" to="$(arg scan_topic)"/>
+    <rosparam file="$(find navigation_pkg)/config/amcl.yaml" command="load"/>
+  </node>
+
+  <node if="$(arg rviz)" pkg="rviz" type="rviz" name="rviz"
+        args="-d $(find navigation_pkg)/rviz/nav.rviz" />
+</launch>

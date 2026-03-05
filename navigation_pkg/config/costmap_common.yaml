@@ -1,0 +1,15 @@
+# Defaults, change these
+obstacle_range: 2.5
+raytrace_range: 3.0
+inflation_radius: 0.55
+cost_scaling_factor: 10.0
+
+# Start with a radius; replace with footprint polygon later if needed
+robot_radius: 0.25
+
+observation_sources: laser_scan
+laser_scan:
+  data_type: LaserScan
+  topic: /scan
+  marking: true
+  clearing: true

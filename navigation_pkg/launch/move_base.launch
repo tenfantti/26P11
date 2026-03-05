@@ -1,0 +1,12 @@
+<launch>
+  <arg name="scan_topic" default="/scan"/>
+
+  <rosparam file="$(find navigation_pkg)/config/costmap_common.yaml" command="load" />
+  <rosparam file="$(find navigation_pkg)/config/global_costmap.yaml" command="load" />
+  <rosparam file="$(find navigation_pkg)/config/local_costmap.yaml" command="load" />
+  <rosparam file="$(find navigation_pkg)/config/base_local_planner.yaml" command="load" />
+
+  <node pkg="move_base" type="move_base" name="move_base" output="screen">
+    <remap from="scan" to="$(arg scan_topic)"/>
+  </node>
+</launch>

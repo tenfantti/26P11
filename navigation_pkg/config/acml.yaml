@@ -1,0 +1,11 @@
+# Defaults, change these
+min_particles: 500
+max_particles: 2000
+update_min_d: 0.10
+update_min_a: 0.20
+resample_interval: 1
+transform_tolerance: 0.5
+
+global_frame_id: map
+odom_frame_id: odom
+base_frame_id: base_link

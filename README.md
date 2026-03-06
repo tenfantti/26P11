@@ -1,4 +1,4 @@
-# Lab rules
+# Lab rules!
 - Go through the lab rules [here](https://wiki.aalto.fi/pages/viewpage.action?pageId=238915137&spaceKey=ERL&title=Lab%2BPolicies%2Band%2BProcedures)
 ## More when working with Stretch
 - Don't program the robot's acceleration parameter too high (~0.3)

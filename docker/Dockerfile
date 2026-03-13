@@ -7,6 +7,7 @@ RUN apt-get update && apt-get install -y \
     git \
     curl \
     nano \
+    rsync \
     python3-pip \
     python3-catkin-tools \
     python3-rosdep \

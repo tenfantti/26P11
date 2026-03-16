@@ -1,11 +1,57 @@
 <launch>
-  <arg name="scan_topic" default="/scan"/>
-  <arg name="rviz" default="true"/>
+  <!-- Mode and basic interface args -->
+  <arg name="sim"          default="false"/>           <!-- true when using simulation -->
+  <arg name="start_rplidar" default="true"/>           <!-- set false if LiDAR is started elsewhere -->
+  <arg name="base_frame"   default="base_link"/>       <!-- base_link for Stretch; base_footprint for TB3 sim -->
+  <arg name="odom_frame"   default="odom"/>
+  <arg name="scan_topic"   default="/scan"/>
 
-  <node pkg="gmapping" type="slam_gmapping" name="slam_gmapping" output="screen">
-    <remap from="scan" to="$(arg scan_topic)"/>
+  <!-- Optional: load contract for reference in rqt/params (not used for substitution here) -->
+  <group unless="$(arg sim)">
+    <rosparam file="$(find navigation_pkg)/config/nav_contract_real.yaml" command="load"/>
+  </group>
+  <group if="$(arg sim)">
+    <rosparam file="$(find navigation_pkg)/config/nav_contract_sim.yaml" command="load"/>
+    <param name="use_sim_time" value="true"/>
+  </group>
+
+  <!-- Robot state publisher (if system already runs it, you can remove this) -->
+  <node pkg="robot_state_publisher" type="robot_state_publisher" name="robot_state_publisher" output="screen">
+    <param name="publish_frequency" value="50.0"/>
   </node>
 
-  <node if="$(arg rviz)" pkg="rviz" type="rviz" name="rviz"
-        args="-d $(find navigation_pkg)/rviz/nav.rviz" />
+  <!-- Real robot LiDAR (RP-LiDAR). Only start when not sim and when requested -->
+  <group unless="$(arg sim)">
+    <group if="$(arg start_rplidar)">
+      <node pkg="rplidar_ros" type="rplidarNode" name="rplidar" output="screen">
+        <param name="serial_port" value="/dev/ttyUSB0"/>       <!-- adjust if needed -->
+        <param name="serial_baudrate" value="115200"/>
+        <param name="frame_id" value="laser"/>                 <!-- set to your actual laser frame if different -->
+        <param name="angle_compensate" value="true"/>
+      </node>
+    </group>
+  </group>
+
+  <!-- Gmapping: builds a 2D map from /scan and odometry -->
+  <node pkg="gmapping" type="slam_gmapping" name="slam_gmapping" output="screen">
+    <param name="base_frame" value="$(arg base_frame)"/>
+    <param name="odom_frame" value="$(arg odom_frame)"/>
+
+    <!-- Typical tuned params for indoor mapping -->
+    <param name="map_update_interval" value="2.0"/>
+    <param name="maxUrange" value="8.0"/>
+    <param name="maxRange" value="12.0"/>
+    <param name="minimumScore" value="200"/>
+    <param name="linearUpdate" value="0.2"/>
+    <param name="angularUpdate" value="0.1"/>
+    <param name="temporalUpdate" value="0.5"/>
+    <param name="resol" value="0.05"/>
+    <param name="xmin" value="-10.0"/>
+    <param name="ymin" value="-10.0"/>
+    <param name="xmax" value="10.0"/>
+    <param name="ymax" value="10.0"/>
+
+    <!-- Connect the laser -->
+    <remap from="scan" to="$(arg scan_topic)"/>
+  </node>
 </launch>

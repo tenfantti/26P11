@@ -8,7 +8,7 @@ export PS1="(stretch-docker) \u@\h:\w\$ "
 # Source ROS
 source /opt/ros/noetic/setup.bash
 
-# Sync your package into catkin workspace
+# Sync package into catkin workspace
 if [ -d /root/ws/navigation_pkg ]; then
   mkdir -p /catkin_ws/src
   rsync -a --delete /root/ws/navigation_pkg /catkin_ws/src/

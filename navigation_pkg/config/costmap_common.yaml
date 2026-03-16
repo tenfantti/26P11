@@ -1,15 +1,27 @@
-# Defaults, change these
-obstacle_range: 2.5
-raytrace_range: 3.0
-inflation_radius: 0.55
-cost_scaling_factor: 10.0
+# Common costmap settings shared by global and local costmaps
 
-# Start with a radius; replace with footprint polygon later if needed
-robot_radius: 0.25
+# TF and timing
+transform_tolerance: 0.2
 
+# Robot footprint (approximate Stretch base; adjust to robot)
+# Units in meters; polygon in base frame
+footprint: [[0.22, 0.18], [0.22, -0.18], [-0.22, -0.18], [-0.22, 0.18]]
+footprint_padding: 0.01
+
+# Sensor ranges used by costmap
+obstacle_range: 3.0        # mark obstacles within this range
+raytrace_range: 4.0        # clear obstacles within this range
+
+# Inflation around obstacles (safety buffer)
+inflation_radius: 0.45
+cost_scaling_factor: 5.0   # higher => cost drops faster away from obstacles
+
+# Observations (laser)
 observation_sources: laser_scan
 laser_scan:
   data_type: LaserScan
   topic: /scan
   marking: true
   clearing: true
+  inf_is_valid: true      # treat +inf ranges as clear space
+  expected_update_rate: 0.0  # 0 = no warning if slower

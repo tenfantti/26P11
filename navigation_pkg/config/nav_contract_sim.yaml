@@ -1,0 +1,10 @@
+frames:
+  map: map
+  odom: odom
+  base: base_footprint
+  laser: base_scan
+
+topics:
+  scan: /scan
+  cmd_vel_out: /cmd_vel
+  goal: /move_base_simple/goal

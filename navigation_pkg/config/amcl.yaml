@@ -1,11 +1,52 @@
-# Defaults, change these
+# Core frames (these will be overridden in launch using nav_contract files)
+odom_frame_id: odom
+base_frame_id: base_link          # override to base_footprint in sim via launch
+global_frame_id: map
+
+# Particle filter sizing
 min_particles: 500
 max_particles: 2000
-update_min_d: 0.10
-update_min_a: 0.20
-resample_interval: 1
-transform_tolerance: 0.5
+kld_err: 0.02
+kld_z: 0.99
 
-global_frame_id: map
-odom_frame_id: odom
-base_frame_id: base_link
+# Motion model (odometry noise) — conservative but responsive
+odom_alpha1: 0.2   # rot noise due to rot
+odom_alpha2: 0.2   # rot noise due to trans
+odom_alpha3: 0.2   # trans noise due to trans
+odom_alpha4: 0.2   # trans noise due to rot
+# If robot odom is noisy, increase these slightly (e.g., 0.3–0.4)
+
+# Laser model (beam skipping disabled initially)
+laser_max_beams: 60
+laser_min_range: 0.1
+laser_max_range: 8.0
+laser_z_hit: 0.9
+laser_z_short: 0.1
+laser_z_max: 0.05
+laser_z_rand: 0.05
+laser_sigma_hit: 0.2
+laser_lambda_short: 0.1
+
+# Update and resampling behavior
+update_min_d: 0.1
+update_min_a: 0.05
+resample_interval: 1
+transform_tolerance: 0.2
+
+# Initial pose handling (set via RViz or parameters elsewhere)
+initial_pose_x: 0.0
+initial_pose_y: 0.0
+initial_pose_a: 0.0
+initial_cov_xx: 0.25
+initial_cov_yy: 0.25
+initial_cov_aa: 0.0685  # ~15 deg^2
+
+# Speed constraints assumptions for laser-based likelihood field
+laser_model_type: likelihood_field
+
+# Publish TF map->odom (AMCL should broadcast this transform)
+tf_broadcast: true
+
+# Recovery behavior (disable alpha filters at start; can enable if localization drifts)
+recovery_alpha_slow: 0.0
+recovery_alpha_fast: 0.0

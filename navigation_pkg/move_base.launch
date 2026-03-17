@@ -1,0 +1,43 @@
+<launch>
+  <!-- Mode and interface args -->
+  <arg name="sim"           default="false"/>
+  <arg name="map"           default="$(find navigation_pkg)/maps/home.yaml"/>
+  <arg name="base_frame"    default="base_link"/>          <!-- base_link (real), base_footprint (sim) -->
+  <arg name="odom_frame"    default="odom"/>
+  <arg name="map_frame"     default="map"/>
+  <arg name="scan_topic"    default="/scan"/>
+  <arg name="cmd_vel_out"   default="/stretch/cmd_vel"/>   <!-- /cmd_vel in sim or if your base uses that -->
+
+  <!-- Start localization stack -->
+  <include file="$(find navigation_pkg)/launch/localization.launch">
+    <arg name="sim"        value="$(arg sim)"/>
+    <arg name="map"        value="$(arg map)"/>
+    <arg name="base_frame" value="$(arg base_frame)"/>
+    <arg name="odom_frame" value="$(arg odom_frame)"/>
+    <arg name="map_frame"  value="$(arg map_frame)"/>
+    <arg name="scan_topic" value="$(arg scan_topic)"/>
+    <arg name="start_rplidar" value="$(eval 'false' if sim else 'true')"/>
+  </include>
+
+  <!-- move_base -->
+  <node pkg="move_base" type="move_base" name="move_base" output="screen">
+    <!-- Load costmap and planner configs -->
+    <rosparam file="$(find navigation_pkg)/config/costmap_common.yaml" command="load"/>
+    <rosparam file="$(find navigation_pkg)/config/global_costmap.yaml" command="load"/>
+    <rosparam file="$(find navigation_pkg)/config/local_costmap.yaml" command="load"/>
+    <rosparam file="$(find navigation_pkg)/config/base_local_planner.yaml" command="load"/>
+
+    <!-- Override frames to match args -->
+    <param name="global_costmap/global_frame"       value="$(arg map_frame)"/>
+    <param name="global_costmap/robot_base_frame"   value="$(arg base_frame)"/>
+    <param name="local_costmap/global_frame"        value="$(arg odom_frame)"/>
+    <param name="local_costmap/robot_base_frame"    value="$(arg base_frame)"/>
+
+    <!-- Planners -->
+    <param name="base_global_planner" value="navfn/NavfnROS"/>
+    <param name="base_local_planner"  value="dwa_local_planner/DWAPlannerROS"/>
+
+    <!-- Command velocity output topic -->
+    <remap from="cmd_vel" to="$(arg cmd_vel_out)"/>
+  </node>
+</launch>

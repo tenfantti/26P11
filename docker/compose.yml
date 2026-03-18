@@ -23,7 +23,7 @@ services:
       # X11 socket for RViz
       - /tmp/.X11-unix:/tmp/.X11-unix:rw
       # Mount your repo so entrypoint can sync navigation_pkg
-      - ../:/root/ws:rw
+      - /home/radiuss/26P11/:/root/ws:rw           #lab laptop directory
 
     # Devices: uncomment when at the robot and you know the paths exist
     # If you’re away from the robot, leave these commented to avoid startup errors

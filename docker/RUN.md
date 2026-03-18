@@ -100,7 +100,6 @@ Simulation (optional, TurtleBot3; only if sim packages installed)
 
 Useful diagnostics
 - rostopic hz /scan
-- rostopic info /cmd_vel
 - rostopic info /stretch/cmd_vel
 - roswtf
 - rosrun tf view_frames (generates frames.pdf)

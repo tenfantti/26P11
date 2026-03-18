@@ -58,9 +58,7 @@ Mapping (build a new map) — real robot
   - roslaunch navigation_pkg mapping.launch base_frame:=base_link scan_topic:=/scan
 - Terminal C (teleop):
   - If the base listens to /stretch/cmd_vel:
-    - rosrun teleop_twist_keyboard teleop_twist_keyboard.py cmd_vel:=/stretch/cmd_vel
-  - If it listens to /cmd_vel:
-    - rosrun teleop_twist_keyboard teleop_twist_keyboard.py
+    - roslaunch stretch_core teleop_twist.launch twist_topic:=/stretch/cmd_vel linear:=0.5 angular:=0.5 teleop_type:=joystick
 
 Save the map
 - mkdir -p $(rospack find navigation_pkg)/maps

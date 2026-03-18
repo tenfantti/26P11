@@ -11,6 +11,9 @@ services:
     env_file:
       - .env
 
+    extra_hosts:
+      - "stretch-re2-2053:10.42.0.1" 
+
     environment:
       # Pass host X11 display into the container (Compose substitutes ${DISPLAY} from host)
       - DISPLAY=${DISPLAY}

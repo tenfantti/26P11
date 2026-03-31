@@ -11,7 +11,7 @@ class TargetPointListener:
 
         self.target_topic = rospy.get_param("~target_topic", "/target_point")
         self.default_frame = rospy.get_param("~default_frame", "map")
-        self.default_yaw = rospy.get_param("~default_yaw", 0.0)
+        self.goal_yaw_deg = rospy.get_param("~goal_yaw_deg", 0.0)
         self.wait_for_result = rospy.get_param("~wait_for_result", False)
         self.result_timeout = rospy.get_param("~result_timeout", 120.0)
         self.min_goal_distance_change = rospy.get_param("~min_goal_distance_change", 0.05)
@@ -55,12 +55,13 @@ class TargetPointListener:
             rospy.loginfo("Target is very close to previous goal. Ignoring duplicate.")
             return
 
-        yaw = self.default_yaw
+        yaw = math.radians(self.goal_yaw_deg)
 
         try:
             self.navigator.send_goal(x=x, y=y, yaw=yaw, frame_id=frame_id)
             self.last_goal_x = x
             self.last_goal_y = y
+            rospy.loginfo("Goal yaw set to %.1f deg", self.goal_yaw_deg)
         except Exception as e:
             rospy.logerr("Failed to send navigation goal: %s", str(e))
             return

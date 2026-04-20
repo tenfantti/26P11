@@ -1,0 +1,46 @@
+<launch>
+
+  <arg name="launch_drivers"  default="true" />
+  <arg name="debug_directory" default="$(env HELLO_FLEET_PATH)/debug/" />
+  <arg name="dryrun"          default="false" />
+  <arg name="rviz"            default="false" />
+  <arg name="respeaker"       value="false" />
+
+  <include file="$(find stretch_core)/launch/stretch.launch"
+           if="$(arg launch_drivers)"
+           pass_all_args="true" />
+
+  <node name="funmap"
+        pkg="stretch_funmap"
+        type="funmap"
+        output="screen">
+    <param name="debug_directory" type="string" value="$(arg debug_directory)"/>
+  </node>
+
+  <node name="aligned_gripper_link_tf_publisher"
+        pkg="tf"
+        type="static_transform_publisher"
+        args="0 0 0 -0.5 0.4999968 0.5 0.5000032 /link_straight_gripper /link_straight_gripper_aligned 100" />
+
+  <node name="grasp_object"
+        pkg="manipulation_pkg"
+        type="grasp_object.py"
+        output="screen">
+    <param name="debug_directory" type="string" value="$(arg debug_directory)"/>
+    <param name="dryrun" type="bool" value="$(arg dryrun)"/>
+  </node>
+
+  <node name="keyboard_teleop"
+        pkg="stretch_core"
+        type="keyboard_teleop"
+        output="screen"
+        args="--mapping_on --grasp_object_on"/>
+
+  <node name="rviz"
+        pkg="rviz"
+        type="rviz"
+        output="screen"
+        args="-d $(find stretch_demos)/rviz/grasp_object.rviz"
+        if="$(arg rviz)" />
+
+</launch>

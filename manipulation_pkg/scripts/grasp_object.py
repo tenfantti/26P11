@@ -19,7 +19,7 @@ import time
 import threading
 import sys
 import tf2_ros
-import argparse as ap        
+import argparse as ap
 import numpy as np
 import os
 
@@ -41,9 +41,10 @@ class GraspObjectNode(hm.HelloNode):
         self.lift_position = None
         self.manipulation_view = None
         self.debug_directory = None
+        self.base_forward_bias = -0.04
 
     def joint_states_callback(self, joint_states):
-        with self.joint_states_lock: 
+        with self.joint_states_lock:
             self.joint_states = joint_states
         wrist_position, wrist_velocity, wrist_effort = hm.get_wrist_state(joint_states)
         self.wrist_position = wrist_position
@@ -53,7 +54,7 @@ class GraspObjectNode(hm.HelloNode):
 
     def lower_tool_until_contact(self):
         rospy.loginfo('lower_tool_until_contact')
-        trigger_request = TriggerRequest() 
+        trigger_request = TriggerRequest()
         trigger_result = self.trigger_lower_until_contact_service(trigger_request)
         rospy.loginfo('trigger_result = {0}'.format(trigger_result))
 
@@ -67,7 +68,7 @@ class GraspObjectNode(hm.HelloNode):
             manip.update(self.point_cloud, self.tf2_buffer)
         else:
             start_time_s = time.time()
-            while ((time.time() - start_time_s) < scan_time_s): 
+            while ((time.time() - start_time_s) < scan_time_s):
                 manip.update(self.point_cloud, self.tf2_buffer)
         if self.debug_directory is not None:
             dirname = self.debug_directory + 'grasp_object/'
@@ -81,11 +82,10 @@ class GraspObjectNode(hm.HelloNode):
 
     def drive(self, forward_m):
         tolerance_distance_m = 0.005
-        if forward_m > 0: 
+        if forward_m > 0:
             at_goal = self.move_base.forward(forward_m, detect_obstacles=False, tolerance_distance_m=tolerance_distance_m)
         else:
             at_goal = self.move_base.backward(forward_m, detect_obstacles=False, tolerance_distance_m=tolerance_distance_m)
-        
     def trigger_grasp_object_callback(self, request):
         max_lift_m = 1.09
         min_extension_m = 0.01
@@ -132,6 +132,7 @@ class GraspObjectNode(hm.HelloNode):
             self.move_to_pose(pose)
 
         pregrasp_yaw = self.manipulation_view.get_pregrasp_yaw(grasp_target, self.tf2_buffer)
+
         rospy.loginfo('pregrasp_yaw = {0:.2f} rad'.format(pregrasp_yaw))
         rospy.loginfo('pregrasp_yaw = {0:.2f} deg'.format(pregrasp_yaw * (180.0/np.pi)))
         rospy.loginfo('Rotate the gripper for grasping.')
@@ -143,6 +144,9 @@ class GraspObjectNode(hm.HelloNode):
         self.move_to_pose(pose)
 
         pregrasp_mobile_base_m, pregrasp_wrist_extension_m = self.manipulation_view.get_pregrasp_planar_translation(grasp_target, self.tf2_buffer)
+
+        pregrasp_mobile_base_m += self.base_forward_bias    #base movement offset added -J
+
         rospy.loginfo('pregrasp_mobile_base_m = {0:.3f} m'.format(pregrasp_mobile_base_m))
         rospy.loginfo('pregrasp_wrist_extension_m = {0:.3f} m'.format(pregrasp_wrist_extension_m))
         rospy.loginfo('Drive to pregrasp location.')
@@ -197,7 +201,7 @@ class GraspObjectNode(hm.HelloNode):
         self.move_to_pose(pose)
 
         rospy.loginfo('Reorient the wrist.')
-        pose = {'joint_wrist_yaw': 0.0}
+        pose = {'joint_wrist_yaw': -0.3}
         self.move_to_pose(pose)
 
         return TriggerResponse(
@@ -211,12 +215,9 @@ class GraspObjectNode(hm.HelloNode):
         self.debug_directory = rospy.get_param('~debug_directory')
         rospy.loginfo('Using the following directory for debugging files: {0}'.format(self.debug_directory))
         self.dryrun = rospy.get_param('~dryrun', False)
-
         self.joint_states_subscriber = rospy.Subscriber('/stretch/joint_states', JointState, self.joint_states_callback)
-        
-        self.trigger_grasp_object_service = rospy.Service('/grasp_object/trigger_grasp_object',
-                                                           Trigger,
-                                                           self.trigger_grasp_object_callback)
+
+        self.trigger_grasp_object_service = rospy.Service('/grasp_object/trigger_grasp_object', Trigger, self.trigger_grasp_object_callback)
 
         rospy.wait_for_service('/funmap/trigger_reach_until_contact')
         rospy.loginfo('Node ' + self.node_name + ' connected to /funmap/trigger_reach_until_contact.')
@@ -235,12 +236,10 @@ class GraspObjectNode(hm.HelloNode):
         rospy.wait_for_service(high_accuracy_service)
         rospy.loginfo('Node ' + self.node_name + ' connected to'  + high_accuracy_service)
         self.trigger_d435i_high_accuracy_mode_service = rospy.ServiceProxy(high_accuracy_service, Trigger)
-        
         rate = rospy.Rate(self.rate)
         while not rospy.is_shutdown():
             rate.sleep()
 
-        
 if __name__ == '__main__':
     try:
         parser = ap.ArgumentParser(description='Grasp Object behavior for stretch.')
@@ -249,4 +248,3 @@ if __name__ == '__main__':
         node.main()
     except KeyboardInterrupt:
         rospy.loginfo('interrupt received, so shutting down')
-

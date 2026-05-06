@@ -161,6 +161,7 @@ catkin_install_python(PROGRAMS
   scripts/listen_target_point.py
   scripts/publish_dummy_target_point.py
   scripts/wp1_fake_target_publisher.py
+  scripts/publish_target_from_json.py
   DESTINATION ${CATKIN_PACKAGE_BIN_DESTINATION}
 )
 

@@ -3,10 +3,13 @@
 import math
 import rospy
 import tf2_ros
+import tf2_geometry_msgs
 
 from geometry_msgs.msg import PointStamped, PoseStamped
 from navigation_pkg.go_to_pose import GoToPose
 from tf.transformations import euler_from_quaternion
+from std_srvs.srv import Trigger
+from actionlib_msgs.msg import GoalStatus
 
 
 class TargetListener:
@@ -15,19 +18,35 @@ class TargetListener:
 
         self.target_point_topic = rospy.get_param("~target_point_topic", "/target_point")
         self.target_pose_topic = rospy.get_param("~target_pose_topic", "/target_pose")
+
         self.default_frame = rospy.get_param("~default_frame", "map")
         self.robot_frame = rospy.get_param("~robot_frame", "base_link")
+
         self.wait_for_result = rospy.get_param("~wait_for_result", False)
         self.result_timeout = rospy.get_param("~result_timeout", 120.0)
+
         self.min_goal_distance_change = rospy.get_param("~min_goal_distance_change", 0.05)
         self.standoff_distance = rospy.get_param("~standoff_distance", 0.5)
         self.use_standoff_for_points = rospy.get_param("~use_standoff_for_points", True)
         self.default_yaw_deg = rospy.get_param("~default_yaw_deg", 0.0)
 
+        self.trigger_grasp_after_nav = rospy.get_param("~trigger_grasp_after_nav", False)
+        self.grasp_service_name = rospy.get_param(
+            "~grasp_service_name",
+            "/grasp_object/trigger_grasp_object"
+        )
+
         self.navigator = GoToPose()
 
         self.tf_buffer = tf2_ros.Buffer()
         self.tf_listener = tf2_ros.TransformListener(self.tf_buffer)
+
+        self.grasp_client = None
+        if self.trigger_grasp_after_nav:
+            rospy.loginfo("Waiting for grasp service: %s", self.grasp_service_name)
+            rospy.wait_for_service(self.grasp_service_name)
+            self.grasp_client = rospy.ServiceProxy(self.grasp_service_name, Trigger)
+            rospy.loginfo("Connected to grasp service.")
 
         self.last_goal_x = None
         self.last_goal_y = None
@@ -50,6 +69,10 @@ class TargetListener:
         rospy.loginfo("Listening for target points on %s", self.target_point_topic)
         rospy.loginfo("Listening for target poses on %s", self.target_pose_topic)
 
+    @staticmethod
+    def normalize_angle(angle):
+        return math.atan2(math.sin(angle), math.cos(angle))
+
     def is_duplicate_goal(self, x, y, yaw=None):
         if self.last_goal_x is None or self.last_goal_y is None:
             return False
@@ -65,6 +88,26 @@ class TargetListener:
 
         return True
 
+    def transform_point_to_map(self, msg):
+        try:
+            transformed_msg = self.tf_buffer.transform(
+                msg,
+                self.default_frame,
+                rospy.Duration(1.0)
+            )
+            return transformed_msg
+
+        except (tf2_ros.LookupException,
+                tf2_ros.ConnectivityException,
+                tf2_ros.ExtrapolationException) as e:
+            rospy.logwarn(
+                "Failed to transform target point from frame '%s' to '%s': %s",
+                msg.header.frame_id,
+                self.default_frame,
+                str(e)
+            )
+            return None
+
     def get_robot_pose_in_map(self):
         try:
             transform = self.tf_buffer.lookup_transform(
@@ -73,6 +116,7 @@ class TargetListener:
                 rospy.Time(0),
                 rospy.Duration(1.0)
             )
+
             x = transform.transform.translation.x
             y = transform.transform.translation.y
 
@@ -88,10 +132,6 @@ class TargetListener:
             rospy.logwarn("Could not get robot pose from TF: %s", str(e))
             return None
 
-    @staticmethod
-    def normalize_angle(angle):
-        return math.atan2(math.sin(angle), math.cos(angle))
-
     def compute_standoff_goal(self, target_x, target_y):
         robot_pose = self.get_robot_pose_in_map()
         if robot_pose is None:
@@ -104,16 +144,19 @@ class TargetListener:
         distance = math.hypot(dx, dy)
 
         if distance < 1e-6:
-            rospy.logwarn("Target is extremely close to robot pose. Cannot compute approach direction.")
+            rospy.logwarn(
+                "Target is extremely close to robot pose. Cannot compute approach direction."
+            )
             return None
 
         approach_yaw = math.atan2(dy, dx)
 
         if distance <= self.standoff_distance:
             rospy.logwarn(
-                "Target is closer than standoff distance (distance=%.3f, standoff=%.3f). "
-                "Using target point directly.",
-                distance, self.standoff_distance
+                "Target is closer than standoff distance "
+                "(distance=%.3f, standoff=%.3f). Using target point directly.",
+                distance,
+                self.standoff_distance
             )
             goal_x = target_x
             goal_y = target_y
@@ -130,17 +173,25 @@ class TargetListener:
 
         if frame_id != self.default_frame:
             rospy.logwarn(
-                "Expected frame '%s' but received '%s'. Proceeding anyway.",
-                self.default_frame, frame_id
+                "Expected frame '%s' but received '%s'. Goal will still be sent.",
+                self.default_frame,
+                frame_id
             )
 
         if self.is_duplicate_goal(x, y, yaw):
-            rospy.loginfo("Goal from %s is very close to previous goal. Ignoring duplicate.", source)
+            rospy.loginfo(
+                "Goal from %s is very close to previous goal. Ignoring duplicate.",
+                source
+            )
             return
 
         rospy.loginfo(
             "Sending goal from %s: frame=%s x=%.3f y=%.3f yaw=%.3f rad",
-            source, frame_id, x, y, yaw
+            source,
+            frame_id,
+            x,
+            y,
+            yaw
         )
 
         try:
@@ -148,33 +199,57 @@ class TargetListener:
             self.last_goal_x = x
             self.last_goal_y = y
             self.last_goal_yaw = yaw
+
         except Exception as e:
             rospy.logerr("Failed to send navigation goal from %s: %s", source, str(e))
             return
 
         if self.wait_for_result:
             state = self.navigator.wait_for_result(timeout=self.result_timeout)
+
             if state is None:
                 rospy.logwarn("Navigation did not finish before timeout.")
-            else:
-                rospy.loginfo(
-                    "Navigation finished with state: %s",
-                    self.navigator.state_to_string(state)
-                )
+                return
+
+            state_text = self.navigator.state_to_string(state)
+            rospy.loginfo("Navigation finished with state: %s", state_text)
+
+            if state == GoalStatus.SUCCEEDED and self.trigger_grasp_after_nav:
+                self.trigger_grasp()
 
     def point_callback(self, msg):
-        frame_id = msg.header.frame_id if msg.header.frame_id else self.default_frame
-        target_x = msg.point.x
-        target_y = msg.point.y
-        target_z = msg.point.z
+        raw_frame_id = msg.header.frame_id if msg.header.frame_id else self.default_frame
 
-        if not math.isfinite(target_x) or not math.isfinite(target_y):
+        if not math.isfinite(msg.point.x) or not math.isfinite(msg.point.y):
             rospy.logwarn("Received invalid PointStamped target.")
             return
 
         rospy.loginfo(
             "Received target point: frame=%s x=%.3f y=%.3f z=%.3f",
-            frame_id, target_x, target_y, target_z
+            raw_frame_id,
+            msg.point.x,
+            msg.point.y,
+            msg.point.z
+        )
+
+        if not msg.header.frame_id:
+            msg.header.frame_id = self.default_frame
+
+        transformed_msg = self.transform_point_to_map(msg)
+        if transformed_msg is None:
+            return
+
+        frame_id = self.default_frame
+        target_x = transformed_msg.point.x
+        target_y = transformed_msg.point.y
+        target_z = transformed_msg.point.z
+
+        rospy.loginfo(
+            "Target point in %s frame: x=%.3f y=%.3f z=%.3f",
+            self.default_frame,
+            target_x,
+            target_y,
+            target_z
         )
 
         if self.use_standoff_for_points:
@@ -186,18 +261,40 @@ class TargetListener:
             goal_x, goal_y, goal_yaw = result
 
             rospy.loginfo(
-                "Computed standoff goal: x=%.3f y=%.3f yaw=%.3f rad (standoff=%.3f m)",
-                goal_x, goal_y, goal_yaw, self.standoff_distance
+                "Computed standoff goal: x=%.3f y=%.3f yaw=%.3f rad "
+                "(standoff=%.3f m)",
+                goal_x,
+                goal_y,
+                goal_yaw,
+                self.standoff_distance
             )
 
-            self.send_navigation_goal(goal_x, goal_y, goal_yaw, frame_id, source="PointStamped")
+            self.send_navigation_goal(
+                goal_x,
+                goal_y,
+                goal_yaw,
+                frame_id,
+                source="PointStamped"
+            )
+
         else:
             yaw = math.radians(self.default_yaw_deg)
-            rospy.loginfo("Using default yaw %.1f deg for PointStamped target.", self.default_yaw_deg)
-            self.send_navigation_goal(target_x, target_y, yaw, frame_id, source="PointStamped")
+            rospy.loginfo(
+                "Using default yaw %.1f deg for PointStamped target.",
+                self.default_yaw_deg
+            )
+
+            self.send_navigation_goal(
+                target_x,
+                target_y,
+                yaw,
+                frame_id,
+                source="PointStamped"
+            )
 
     def pose_callback(self, msg):
         frame_id = msg.header.frame_id if msg.header.frame_id else self.default_frame
+
         x = msg.pose.position.x
         y = msg.pose.position.y
         z = msg.pose.position.z
@@ -212,10 +309,37 @@ class TargetListener:
 
         rospy.loginfo(
             "Received target pose: frame=%s x=%.3f y=%.3f z=%.3f yaw=%.3f rad",
-            frame_id, x, y, z, yaw
+            frame_id,
+            x,
+            y,
+            z,
+            yaw
         )
 
-        self.send_navigation_goal(x, y, yaw, frame_id, source="PoseStamped")
+        self.send_navigation_goal(
+            x,
+            y,
+            yaw,
+            frame_id,
+            source="PoseStamped"
+        )
+
+    def trigger_grasp(self):
+        if self.grasp_client is None:
+            rospy.logwarn("Grasp client not initialized.")
+            return
+
+        try:
+            rospy.loginfo("Triggering grasp...")
+            response = self.grasp_client()
+            rospy.loginfo(
+                "Grasp response: success=%s message=%s",
+                response.success,
+                response.message
+            )
+
+        except rospy.ServiceException as e:
+            rospy.logerr("Failed to call grasp service: %s", str(e))
 
 
 if __name__ == "__main__":

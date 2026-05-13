@@ -15,16 +15,13 @@ from actionlib_msgs.msg import GoalStatus
 class TargetListener:
     def __init__(self):
         rospy.init_node("listen_target_point")
-
+        self.trigger_grasp_on_aborted = rospy.get_param("~trigger_grasp_on_aborted", False)
         self.target_point_topic = rospy.get_param("~target_point_topic", "/target_point")
         self.target_pose_topic = rospy.get_param("~target_pose_topic", "/target_pose")
-
         self.default_frame = rospy.get_param("~default_frame", "map")
         self.robot_frame = rospy.get_param("~robot_frame", "base_link")
-
         self.wait_for_result = rospy.get_param("~wait_for_result", False)
         self.result_timeout = rospy.get_param("~result_timeout", 120.0)
-
         self.min_goal_distance_change = rospy.get_param("~min_goal_distance_change", 0.05)
         self.standoff_distance = rospy.get_param("~standoff_distance", 0.5)
         self.use_standoff_for_points = rospy.get_param("~use_standoff_for_points", True)
@@ -214,8 +211,12 @@ class TargetListener:
             state_text = self.navigator.state_to_string(state)
             rospy.loginfo("Navigation finished with state: %s", state_text)
 
-            if state == GoalStatus.SUCCEEDED and self.trigger_grasp_after_nav:
-                self.trigger_grasp()
+            if self.trigger_grasp_after_nav:
+                if state == GoalStatus.SUCCEEDED:
+                    self.trigger_grasp()
+                elif state == GoalStatus.ABORTED and self.trigger_grasp_on_aborted:
+                    rospy.logwarn("Navigation ABORTED, but trigger_grasp_on_aborted is true. Triggering grasp anyway.")
+                    self.trigger_grasp()
 
     def point_callback(self, msg):
         raw_frame_id = msg.header.frame_id if msg.header.frame_id else self.default_frame

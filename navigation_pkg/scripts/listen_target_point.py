@@ -28,6 +28,7 @@ class TargetListener:
         self.default_yaw_deg = rospy.get_param("~default_yaw_deg", 0.0)
 
         self.trigger_grasp_after_nav = rospy.get_param("~trigger_grasp_after_nav", False)
+        self.min_nav_time_before_abort_grasp = rospy.get_param("~min_nav_time_before_abort_grasp", 5.0)
         self.grasp_service_name = rospy.get_param(
             "~grasp_service_name",
             "/grasp_object/trigger_grasp_object"
@@ -184,14 +185,12 @@ class TargetListener:
 
         rospy.loginfo(
             "Sending goal from %s: frame=%s x=%.3f y=%.3f yaw=%.3f rad",
-            source,
-            frame_id,
-            x,
-            y,
-            yaw
+            source, frame_id, x, y, yaw
         )
 
         try:
+            nav_start_time = rospy.Time.now()
+
             self.navigator.send_goal(x=x, y=y, yaw=yaw, frame_id=frame_id)
             self.last_goal_x = x
             self.last_goal_y = y
@@ -208,15 +207,37 @@ class TargetListener:
                 rospy.logwarn("Navigation did not finish before timeout.")
                 return
 
+            nav_elapsed = (rospy.Time.now() - nav_start_time).to_sec()
             state_text = self.navigator.state_to_string(state)
-            rospy.loginfo("Navigation finished with state: %s", state_text)
+
+            rospy.loginfo(
+                "Navigation finished with state: %s after %.2f seconds",
+                state_text,
+                nav_elapsed
+            )
 
             if self.trigger_grasp_after_nav:
                 if state == GoalStatus.SUCCEEDED:
+                    rospy.loginfo("Navigation succeeded. Triggering grasp.")
                     self.trigger_grasp()
+
                 elif state == GoalStatus.ABORTED and self.trigger_grasp_on_aborted:
-                    rospy.logwarn("Navigation ABORTED, but trigger_grasp_on_aborted is true. Triggering grasp anyway.")
-                    self.trigger_grasp()
+                    min_time = self.min_nav_time_before_abort_grasp
+
+                    if nav_elapsed >= min_time:
+                        rospy.logwarn(
+                            "Navigation aborted after %.2f seconds, which is longer than %.2f. "
+                            "Triggering grasp fallback.",
+                            nav_elapsed,
+                            min_time
+                        )
+                        self.trigger_grasp()
+                    else:
+                        rospy.logwarn(
+                            "Navigation aborted too quickly after %.2f seconds. "
+                            "Not triggering grasp.",
+                            nav_elapsed
+                        )
 
     def point_callback(self, msg):
         raw_frame_id = msg.header.frame_id if msg.header.frame_id else self.default_frame

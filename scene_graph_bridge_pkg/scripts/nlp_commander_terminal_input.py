@@ -5,7 +5,7 @@ import os
 import rospy
 import requests
 
-import direct_goal_sender
+import scene_graph_bridge_pkg.scripts.direct_goal_sender as direct_goal_sender
 
 
 def extract_target_with_ollama(command, model_name, ollama_url):
